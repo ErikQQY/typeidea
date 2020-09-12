@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import Post,Category,Tag
 from django.urls import reverse
 from django.utils.html import format_html
-
+from .adminforms import PostAdminForm
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -23,6 +23,19 @@ class TagAdmin(admin.ModelAdmin):
         obj.owner=request.user
         return super(TagAdmin,self).save_model(request,obj,form,change)
 
+
+class CategoryOwnerFilter(admin.SimpleListFilter):
+    title='分类过滤器'
+    parameter_name='owner_category'
+
+    def lookups(self,request,model_admin):
+        return Category.objects.filter(owner=request.user).values_list('id','name')
+    def queryset(self,request,queryset):
+        category_id=self.value()
+        if category_id:
+            return queryset.filter(category_id=self.value())
+        return queryset
+
 @admin.register(Post)
 class PostAdmin(admin.ModelAdmin):
     list_display=[
@@ -30,11 +43,13 @@ class PostAdmin(admin.ModelAdmin):
             ]
     list_display_links=[]
     list_filter=['category',]
-    search_fields=['title','category_name']
+    search_fields=['title','category__name']
     actions_on_top=True
     actions_on_bottom=True
 
     save_on_top=True
+    
+    form=PostAdminForm
 
     fields=(
             ('category','title'),
@@ -42,7 +57,7 @@ class PostAdmin(admin.ModelAdmin):
             'status',
             'content',
             'tag',
-            )
+    )
 
     def operator(self,obj):
         return format_html(
@@ -54,6 +69,13 @@ class PostAdmin(admin.ModelAdmin):
     def save_model(self,request,obj,form,change):
         obj.owner=request.user
         return super(PostAdmin,self).save_model(request,obj,form,change)
-
-
+    
+    def get_queryset(self,request):
+        qs=super(PostAdmin,self).get_queryset(request)
+        return qs.filter(owner=request.user)
+    class Media(admin.ModelAdmin):
+        css={
+                'all':("http://cdn.bootcss.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css",),
+                }
+        js=('http://cdn.bootcss.com/bootstrap/4.0.0-beta.2/js/bootstrap.bundle.js',)
 # Register your models here.
